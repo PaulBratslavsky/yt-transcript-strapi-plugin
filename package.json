@@ -71,7 +71,7 @@
     "displayName": "YT Transcript",
     "description": "Get YT Video Transcript"
   },
-  "name": "@paulbratslavsky/yt-transcript-strapi-plugin",
+  "name": "yt-transcript-strapi-plugin",
   "description": "Get YT Video Transcript",
   "license": "MIT",
   "author": "Paul Brats <codingafterthirty@gmail.com>",

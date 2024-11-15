@@ -32,11 +32,15 @@ async function processTextChunks(chunks: string[], model: ChatOpenAI) {
 export async function generateModifiedTranscript (rawTranscript: string) {
   const pluginSettings = await strapi.config.get('plugin.yt-transcript') as YTTranscriptConfig;     
   
+  if (!pluginSettings.openAIApiKey || !pluginSettings.model || !pluginSettings.temp || !pluginSettings.maxTokens) {
+    throw new Error('Missing required configuration for YTTranscript');
+  }
+
   const chatModel = await initializeModel({
     openAIApiKey: pluginSettings.openAIApiKey,
-    model: pluginSettings.model ?? "gpt-4o-mini",
-    temp: pluginSettings.temp ?? 0.7,
-    maxTokens: pluginSettings.maxTokens ?? 1000,
+    model: pluginSettings.model,
+    temp: pluginSettings.temp,
+    maxTokens: pluginSettings.maxTokens,
   });
 
   const splitter = new TokenTextSplitter({

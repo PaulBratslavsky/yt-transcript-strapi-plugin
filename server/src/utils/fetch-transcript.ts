@@ -50,7 +50,14 @@ const fetchTranscript = async (
 
     const title = info.basic_info.title;
     const videoId = info.basic_info.id;
-    const thumbnailUrl = cleanImageUrl(info.basic_info.thumbnail[0].url);
+    console.log(info.basic_info.thumbnail[0].url, "what is this");
+    let thumbnailUrl = "";
+    const processedThumbnailUrl = info.basic_info?.thumbnail?.[0]?.url;
+    if (processedThumbnailUrl) {
+      thumbnailUrl = cleanImageUrl(processedThumbnailUrl);
+    } else {
+      thumbnailUrl = "";
+    }
 
     return {
       title,

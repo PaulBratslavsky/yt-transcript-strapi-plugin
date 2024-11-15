@@ -67,7 +67,7 @@ const service = ({ strapi }: { strapi: Core.Strapi }) => ({
   },
 
   async saveTranscript(payload) {
-    console.log('Saving transcript:', payload);
+    // console.log('Saving transcript:', payload);
     return await strapi.documents('plugin::yt-transcript.transcript').create({
       data: payload,
     });

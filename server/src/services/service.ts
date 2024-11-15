@@ -6,6 +6,12 @@ import { PromptTemplate } from "@langchain/core/prompts";
 import { initializeModel } from "../utils/openai";
 import fetchTranscript from '../utils/fetch-transcript';
 
+interface YTTranscriptConfig {
+  openAIApiKey: string;
+  model?: string;
+  temp?: number;
+  maxTokens?: number;
+}
 
 async function processTextChunks(chunks: string[], model: ChatOpenAI) {
   const punctuationPrompt = PromptTemplate.fromTemplate(
@@ -24,10 +30,13 @@ async function processTextChunks(chunks: string[], model: ChatOpenAI) {
 }
 
 export async function generateModifiedTranscript (rawTranscript: string) {
+  const pluginSettings = await strapi.config.get('plugin.yt-transcript') as YTTranscriptConfig;     
+  
   const chatModel = await initializeModel({
-    openAIApiKey: process.env.OPEN_AI_KEY ?? "",
-    model: process.env.OPEN_AI_MODEL ?? "gpt-4o-mini",
-    temp: parseFloat(process.env.OPEN_AI_TEMPERATURE ?? "0.7"),
+    openAIApiKey: pluginSettings.openAIApiKey,
+    model: pluginSettings.model ?? "gpt-4o-mini",
+    temp: pluginSettings.temp ?? 0.7,
+    maxTokens: pluginSettings.maxTokens ?? 1000,
   });
 
   const splitter = new TokenTextSplitter({

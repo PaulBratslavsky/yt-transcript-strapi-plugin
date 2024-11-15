@@ -30,7 +30,7 @@ async function processTextChunks(chunks: string[], model: ChatOpenAI) {
 }
 
 export async function generateModifiedTranscript (rawTranscript: string) {
-  const pluginSettings = await strapi.config.get('plugin.yt-transcript') as YTTranscriptConfig;     
+  const pluginSettings = await strapi.config.get('plugin::yt-transcript') as YTTranscriptConfig;     
   
   if (!pluginSettings.openAIApiKey || !pluginSettings.model || !pluginSettings.temp || !pluginSettings.maxTokens) {
     throw new Error('Missing required configuration for YTTranscript');

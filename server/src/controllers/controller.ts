@@ -33,7 +33,7 @@ const controller = ({ strapi }: { strapi: Core.Strapi }) => ({
       readableTranscript: readableTranscript,
     };
 
-    console.log('Payload:', payload);
+    // console.log('Payload:', payload);
 
     const transcript = await strapi
       .plugin('yt-transcript')

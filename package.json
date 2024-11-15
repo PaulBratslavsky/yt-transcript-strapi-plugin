@@ -2,6 +2,10 @@
   "version": "0.0.1",
   "keywords": ["yt-transcript", "youtube", "transcript", "strapi", "plugin"],
   "type": "commonjs",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/PaulBratslavsky/yt-transcript"
+  },
   "exports": {
     "./package.json": "./package.json",
     "./strapi-admin": {

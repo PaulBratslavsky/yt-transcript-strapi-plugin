@@ -1,0 +1,47 @@
+{
+  "kind": "collectionType",
+  "collectionName": "transcript",
+  "info": {
+    "singularName": "transcript",
+    "pluralName": "transcripts",
+    "displayName": "Transcript"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {
+    "content-manager": {
+      "visible": true
+    },
+    "content-type-builder": {
+      "visible": false
+    }
+  },
+
+  "attributes": {
+    "title": {
+      "type": "string"
+    },
+
+    "videoId": {
+      "type": "string"
+    },
+
+    "thumbnailUrl": {
+      "type": "string"
+    },
+
+
+    "fullTranscript": {
+      "type": "richtext"
+    },
+
+    "transcriptWithTimeCodes": {
+      "type": "json"
+    },
+
+    "readableTranscript": {
+      "type": "richtext"
+    }
+  }
+}

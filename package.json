@@ -71,8 +71,11 @@
     "displayName": "YT Transcript",
     "description": "Get YT Video Transcript"
   },
-  "name": "yt-transcript",
+  "name": "@paulbratslavsky/yt-transcript",
   "description": "Get YT Video Transcript",
   "license": "MIT",
-  "author": "Paul Brats <codingafterthirty@gmail.com>"
+  "author": "Paul Brats <codingafterthirty@gmail.com>",
+  "publishConfig": {
+    "access": "public"
+  }
 }

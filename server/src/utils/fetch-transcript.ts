@@ -8,7 +8,7 @@ export interface TranscriptSegment {
 export interface TranscriptData {
   title: string;
   videoId: string;
-  thumbnailUrl: string;
+  // thumbnailUrl: string;
   fullTranscript: string;
   transcriptWithTimeCodes: TranscriptSegment[];
 }
@@ -59,17 +59,22 @@ const fetchTranscript = async (
 
     console.log("Full transcript generated");
 
+    console.log("Getting basic info");
+
     const title = info.basic_info.title;
     const videoId = info.basic_info.id;
-    const thumbnailUrl = info.basic_info.thumbnail[0].url;
-    const thumbnailUrlCleaned = cleanImageUrl(thumbnailUrl);
+
+    console.log("Getting thumbnail URL");
+    console.log(info.basic_info, "basic info");
+    // const thumbnailUrl = info.basic_info.thumbnail[0].url;
+    // const thumbnailUrlCleaned = cleanImageUrl(thumbnailUrl);
 
     console.log("Returning transcript data");
 
     return {
       title,
       videoId,
-      thumbnailUrl: thumbnailUrlCleaned || "",
+      // thumbnailUrl: thumbnailUrlCleaned || "",
       fullTranscript,
       transcriptWithTimeCodes,
     };

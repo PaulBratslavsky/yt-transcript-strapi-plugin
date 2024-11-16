@@ -6,22 +6,33 @@ const controller = ({ strapi }: { strapi: Core.Strapi }) => ({
 
     if (!videoId) return (ctx.body = { error: 'Invalid YouTube URL or ID', data: null });
 
+    console.log("Looking for transcript in database");
+
     const found = await strapi
       .plugin('yt-transcript')
       .service('service')
       .findTranscript(videoId);
 
-    if (found) return (ctx.body = { data: found });
+    if (found) {
+      console.log("Transcript found.");
+      return (ctx.body = { data: found });
+    }
+
+    console.log("Transcript not found. Fetching new transcript.");
 
     const transcriptData = await strapi
       .plugin('yt-transcript')
       .service('service')
       .getTranscript(videoId);
 
+    console.log("New transcript fetched.");
+
     const readableTranscript = await strapi
       .plugin('yt-transcript')
       .service('service')
       .generateHumanReadableTranscript(transcriptData.fullTranscript);
+
+    console.log("Human readable transcript generated.");
 
     const payload = {
       title: transcriptData.title,
@@ -33,7 +44,7 @@ const controller = ({ strapi }: { strapi: Core.Strapi }) => ({
       readableTranscript: readableTranscript,
     };
 
-    // console.log('Payload:', payload);
+    console.log("Saving new transcript to database.");
 
     const transcript = await strapi
       .plugin('yt-transcript')

@@ -31,9 +31,7 @@ async function processTextChunks(chunks: string[], model: ChatOpenAI) {
 
 export async function generateModifiedTranscript (rawTranscript: string) {
   const pluginSettings = await strapi.config.get('plugin::yt-transcript') as YTTranscriptConfig;    
-  
-  console.log('pluginSettings', pluginSettings);
-  
+    
   if (!pluginSettings.openAIApiKey || !pluginSettings.model || !pluginSettings.temp || !pluginSettings.maxTokens) {
     throw new Error('Missing required configuration for YTTranscript');
   }
@@ -53,12 +51,12 @@ export async function generateModifiedTranscript (rawTranscript: string) {
   const transcriptChunks = await splitter.createDocuments([rawTranscript]);
   const chunkTexts = transcriptChunks.map(chunk => chunk.pageContent);
   const modifiedTranscript = await processTextChunks(chunkTexts, chatModel);
-
   return modifiedTranscript;
 }
 
 const service = ({ strapi }: { strapi: Core.Strapi }) => ({
   async getTranscript(identifier: string) {
+    console.log("Fetching Transcript - Calling fetchTranscript Service");
     const youtubeIdRegex = /^[a-zA-Z0-9_-]{11}$/;
     const isValid = youtubeIdRegex.test(identifier);
     if (!isValid) return { error: 'Invalid video ID', data: null };
@@ -86,7 +84,7 @@ const service = ({ strapi }: { strapi: Core.Strapi }) => ({
   },
 
   async generateHumanReadableTranscript(transcript) {
-    console.log('Generating human readable transcript:', transcript);
+    console.log('Generating human readable transcript:');
     const modifiedTranscript = await generateModifiedTranscript(transcript);
     return modifiedTranscript;
   },

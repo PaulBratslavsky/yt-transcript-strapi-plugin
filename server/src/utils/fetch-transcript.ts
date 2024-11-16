@@ -57,7 +57,11 @@ const fetchTranscript = async (
       (segment) => segment.snippet.text
     ).join(' ');
 
+    console.log(fullTranscript, "full transcript");
+    
     console.log("Full transcript generated");
+
+
 
     console.log("Getting basic info");
 

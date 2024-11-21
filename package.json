@@ -1,6 +1,12 @@
 {
-  "version": "0.0.9",
-  "keywords": ["yt-transcript", "youtube", "transcript", "strapi", "plugin"],
+  "version": "0.0.10",
+  "keywords": [
+    "yt-transcript-strapi-plugin",
+    "youtube",
+    "transcript",
+    "strapi",
+    "plugin"
+  ],
   "type": "commonjs",
   "repository": {
     "type": "git",
@@ -37,7 +43,8 @@
   },
   "dependencies": {
     "@langchain/core": "^0.3.18",
-    "@langchain/openai": "^0.3.13",
+    "@langchain/openai": "^0.3.14",
+    "@langchain/textsplitters": "^0.1.0",
     "@strapi/design-system": "^2.0.0-rc.12",
     "@strapi/icons": "^2.0.0-rc.12",
     "langchain": "^0.3.5",
@@ -67,7 +74,7 @@
   },
   "strapi": {
     "kind": "plugin",
-    "name": "yt-transcript",
+    "name": "yt-transcript-strapi-plugin",
     "displayName": "YT Transcript",
     "description": "Get YT Video Transcript"
   },

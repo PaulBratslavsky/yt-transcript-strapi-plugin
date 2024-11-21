@@ -9,7 +9,7 @@ const controller = ({ strapi }: { strapi: Core.Strapi }) => ({
     console.log("Looking for transcript in database");
 
     const found = await strapi
-      .plugin('yt-transcript')
+      .plugin('yt-transcript-strapi-plugin')
       .service('service')
       .findTranscript(videoId);
 
@@ -21,33 +21,34 @@ const controller = ({ strapi }: { strapi: Core.Strapi }) => ({
     console.log("Transcript not found. Fetching new transcript.");
 
     const transcriptData = await strapi
-      .plugin('yt-transcript')
+      .plugin('yt-transcript-strapi-plugin')
       .service('service')
       .getTranscript(videoId);
 
     console.log("New transcript fetched.");
 
     const readableTranscript = await strapi
-      .plugin('yt-transcript')
+      .plugin('yt-transcript-strapi-plugin')
       .service('service')
       .generateHumanReadableTranscript(transcriptData.fullTranscript);
 
     console.log("Human readable transcript generated.");
 
     const payload = {
-      title: transcriptData.title,
-      transcript: transcriptData.transcript,
-      videoId: transcriptData.videoId,
-      thumbnailUrl: transcriptData.thumbnailUrl,
-      fullTranscript: transcriptData.fullTranscript,
-      transcriptWithTimeCodes: transcriptData.transcriptWithTimeCodes,
+      title: transcriptData?.title || "No title found",
+      videoId: transcriptData?.videoId,
+      thumbnailUrl: transcriptData?.thumbnailUrl || "No thumbnail URL found",
+      fullTranscript: transcriptData?.fullTranscript,
+      transcriptWithTimeCodes: transcriptData?.transcriptWithTimeCodes,
       readableTranscript: readableTranscript,
     };
+
+    console.log("Payload:", payload);
 
     console.log("Saving new transcript to database.");
 
     const transcript = await strapi
-      .plugin('yt-transcript')
+      .plugin('yt-transcript-strapi-plugin')
       .service('service')
       .saveTranscript(payload);
 

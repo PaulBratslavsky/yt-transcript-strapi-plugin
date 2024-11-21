@@ -30,7 +30,7 @@ async function processTextChunks(chunks: string[], model: ChatOpenAI) {
 }
 
 export async function generateModifiedTranscript (rawTranscript: string) {
-  const pluginSettings = await strapi.config.get('plugin::yt-transcript') as YTTranscriptConfig;    
+  const pluginSettings = await strapi.config.get('plugin::yt-transcript-strapi-plugin') as YTTranscriptConfig;    
     
   if (!pluginSettings.openAIApiKey || !pluginSettings.model || !pluginSettings.temp || !pluginSettings.maxTokens) {
     throw new Error('Missing required configuration for YTTranscript');
@@ -66,16 +66,22 @@ const service = ({ strapi }: { strapi: Core.Strapi }) => ({
 
   async saveTranscript(payload) {
     // console.log('Saving transcript:', payload);
-    return await strapi.documents('plugin::yt-transcript.transcript').create({
+    return await strapi.documents('plugin::yt-transcript-strapi-plugin.transcript').create({
       data: payload,
     });
   },
 
   async findTranscript(videoId) {
     console.log('Finding transcript for videoId:', videoId);
-    const transcriptData   = await strapi.documents('plugin::yt-transcript.transcript').findFirst({
+
+    const test = await strapi.documents('plugin::yt-transcript-strapi-plugin.transcript')
+
+    console.log('Test:', test);
+
+    const transcriptData   = await strapi.documents('plugin::yt-transcript-strapi-plugin.transcript').findFirst({
       filters: { videoId },
     });
+
 
     console.log('Transcript found:', transcriptData?.title, 'found');
 

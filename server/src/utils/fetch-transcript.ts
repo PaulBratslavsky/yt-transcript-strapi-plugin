@@ -8,18 +8,16 @@ export interface TranscriptSegment {
 export interface TranscriptData {
   title: string;
   videoId: string;
-  // thumbnailUrl: string;
+  thumbnailUrl: string;
   fullTranscript: string;
   transcriptWithTimeCodes: TranscriptSegment[];
 }
 
-const fetchTranscript = async (
-  identifier: string
-): Promise<TranscriptData> => {
-  console.log("Fetching Transcript - Calling fetchTranscript Utils");
+const fetchTranscript = async (identifier: string): Promise<TranscriptData> => {
+  console.log('Fetching Transcript - Calling fetchTranscript Utils');
   const { Innertube } = await import('youtubei.js');
 
-  console.log("Creating YouTube instance");
+  console.log('Creating YouTube instance');
 
   const youtube = await Innertube.create({
     lang: 'en',
@@ -31,10 +29,10 @@ const fetchTranscript = async (
     const info = await youtube.getInfo(identifier);
     const transcriptData = await info.getTranscript();
 
-    console.log("Transcript data fetched");
+    console.log('Transcript data fetched');
 
-    const transcriptWithTimeCodes: TranscriptSegment[] = transcriptData?.transcript?.content?.body?.initial_segments.map(
-      (segment) => {
+    const transcriptWithTimeCodes: TranscriptSegment[] =
+      transcriptData?.transcript?.content?.body?.initial_segments.map((segment) => {
         const segmentDuration = Number(segment.end_ms) - Number(segment.start_ms);
         return {
           text: segment.snippet.text,
@@ -42,43 +40,38 @@ const fetchTranscript = async (
           end: Number(segment.end_ms),
           duration: segmentDuration,
         };
-      }
-    );
+      });
 
-    console.log("Transcript with time codes generated");
+    console.log('Transcript with time codes generated');
 
     function cleanImageUrl(url) {
       return url.split('?')[0];
     }
 
-    console.log("Cleaning thumbnail URL");
+    console.log('Cleaning thumbnail URL');
 
-    const fullTranscript = transcriptData?.transcript?.content?.body?.initial_segments.map(
-      (segment) => segment.snippet.text
-    ).join(' ');
+    const fullTranscript = transcriptData?.transcript?.content?.body?.initial_segments
+      .map((segment) => segment.snippet.text)
+      .join(' ');
 
-    console.log(fullTranscript, "full transcript");
-    
-    console.log("Full transcript generated");
+    console.log(fullTranscript, 'full transcript');
 
+    console.log('Full transcript generated');
 
+    console.log('Getting basic info');
 
-    console.log("Getting basic info");
+    const title = info.basic_info?.title;
+    const videoId = info.basic_info?.id;
 
-    const title = info.basic_info.title;
-    const videoId = info.basic_info.id;
+    console.log('Getting thumbnail URL');
+    const thumbnailUrl = info?.basic_info?.thumbnail[0]?.url;
 
-    console.log("Getting thumbnail URL");
-    console.log(info.basic_info, "basic info");
-    // const thumbnailUrl = info.basic_info.thumbnail[0].url;
-    // const thumbnailUrlCleaned = cleanImageUrl(thumbnailUrl);
-
-    console.log("Returning transcript data");
+    console.log('Returning transcript data');
 
     return {
-      title,
       videoId,
-      // thumbnailUrl: thumbnailUrlCleaned || "",
+      ...(title ? { title } : { title: 'No title found' }),
+      ...(thumbnailUrl ? { thumbnailUrl: cleanImageUrl(thumbnailUrl) } : { thumbnailUrl: '' }),
       fullTranscript,
       transcriptWithTimeCodes,
     };

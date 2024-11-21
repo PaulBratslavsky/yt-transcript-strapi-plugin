@@ -36,8 +36,7 @@ const controller = ({ strapi }: { strapi: Core.Strapi }) => ({
 
     const payload = {
       title: transcriptData?.title || "No title found",
-      videoId: transcriptData?.videoId,
-      thumbnailUrl: transcriptData?.thumbnailUrl || "No thumbnail URL found",
+      videoId,
       fullTranscript: transcriptData?.fullTranscript,
       transcriptWithTimeCodes: transcriptData?.transcriptWithTimeCodes,
       readableTranscript: readableTranscript,

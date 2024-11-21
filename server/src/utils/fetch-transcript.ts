@@ -60,18 +60,24 @@ const fetchTranscript = async (identifier: string): Promise<TranscriptData> => {
 
     console.log('Getting basic info');
 
-    const title = info.basic_info?.title;
-    const videoId = info.basic_info?.id;
+    const title = info?.basic_info?.title;
+    const videoId = info?.basic_info?.id;
 
     console.log('Getting thumbnail URL');
+
     const thumbnailUrl = info?.basic_info?.thumbnail[0]?.url;
+
+    console.log("title", title);
+    console.log("videoId", videoId);
+    console.log("thumbnailUrl", thumbnailUrl);
+
 
     console.log('Returning transcript data');
 
     return {
       videoId,
-      ...(title ? { title } : { title: 'No title found' }),
-      ...(thumbnailUrl ? { thumbnailUrl: cleanImageUrl(thumbnailUrl) } : { thumbnailUrl: '' }),
+      title: title || 'No title found',
+      thumbnailUrl: thumbnailUrl ? cleanImageUrl(thumbnailUrl) : 'No video ID found',
       fullTranscript,
       transcriptWithTimeCodes,
     };

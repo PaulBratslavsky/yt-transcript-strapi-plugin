@@ -73,11 +73,6 @@ const service = ({ strapi }: { strapi: Core.Strapi }) => ({
 
   async findTranscript(videoId) {
     console.log('Finding transcript for videoId:', videoId);
-
-    const test = await strapi.documents('plugin::yt-transcript-strapi-plugin.transcript')
-
-    console.log('Test:', test);
-
     const transcriptData   = await strapi.documents('plugin::yt-transcript-strapi-plugin.transcript').findFirst({
       filters: { videoId },
     });

@@ -6,14 +6,12 @@ export interface TranscriptSegment {
 }
 
 export interface TranscriptData {
-  title: string;
   videoId: string;
-  thumbnailUrl: string;
   fullTranscript: string;
   transcriptWithTimeCodes: TranscriptSegment[];
 }
 
-const fetchTranscript = async (identifier: string): Promise<TranscriptData> => {
+const fetchTranscript = async (videoId: string): Promise<TranscriptData> => {
   console.log('Fetching Transcript - Calling fetchTranscript Utils');
   const { Innertube } = await import('youtubei.js');
 
@@ -26,7 +24,7 @@ const fetchTranscript = async (identifier: string): Promise<TranscriptData> => {
   });
 
   try {
-    const info = await youtube.getInfo(identifier);
+    const info = await youtube.getInfo(videoId);
     const transcriptData = await info.getTranscript();
 
     console.log('Transcript data fetched');
@@ -44,40 +42,17 @@ const fetchTranscript = async (identifier: string): Promise<TranscriptData> => {
 
     console.log('Transcript with time codes generated');
 
-    function cleanImageUrl(url) {
-      return url.split('?')[0];
-    }
-
-    console.log('Cleaning thumbnail URL');
 
     const fullTranscript = transcriptData?.transcript?.content?.body?.initial_segments
       .map((segment) => segment.snippet.text)
       .join(' ');
 
     console.log(fullTranscript, 'full transcript');
-
     console.log('Full transcript generated');
-
-    console.log('Getting basic info');
-
-    const title = info?.basic_info?.title;
-    const videoId = info?.basic_info?.id;
-
-    console.log('Getting thumbnail URL');
-
-    const thumbnailUrl = info?.basic_info?.thumbnail[0]?.url;
-
-    console.log("title", title);
-    console.log("videoId", videoId);
-    console.log("thumbnailUrl", thumbnailUrl);
-
-
     console.log('Returning transcript data');
 
     return {
       videoId,
-      title: title || 'No title found',
-      thumbnailUrl: thumbnailUrl ? cleanImageUrl(thumbnailUrl) : 'No video ID found',
       fullTranscript,
       transcriptWithTimeCodes,
     };

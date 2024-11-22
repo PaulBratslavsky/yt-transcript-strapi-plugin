@@ -27,10 +27,6 @@
       "type": "string"
     },
 
-    "thumbnailUrl": {
-      "type": "string"
-    },
-
     "fullTranscript": {
       "type": "richtext"
     },

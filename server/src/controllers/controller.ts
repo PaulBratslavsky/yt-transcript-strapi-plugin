@@ -35,8 +35,8 @@ const controller = ({ strapi }: { strapi: Core.Strapi }) => ({
     console.log("Human readable transcript generated.");
 
     const payload = {
-      title: transcriptData?.title || "No title found",
       videoId,
+      title: transcriptData?.title || "No title found",
       fullTranscript: transcriptData?.fullTranscript,
       transcriptWithTimeCodes: transcriptData?.transcriptWithTimeCodes,
       readableTranscript: readableTranscript,

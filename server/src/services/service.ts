@@ -11,6 +11,7 @@ interface YTTranscriptConfig {
   model?: string;
   temp?: number;
   maxTokens?: number;
+  proxyUrl?: string;
 }
 
 async function processTextChunks(chunks: string[], model: ChatOpenAI) {
@@ -64,7 +65,15 @@ const service = ({ strapi }: { strapi: Core.Strapi }) => ({
       return { error: 'Invalid video ID', data: null };
     }
 
-    const transcriptData = await fetchTranscript(identifier);
+    // Get proxy config if available
+    const pluginSettings = (await strapi.config.get(
+      'plugin::yt-transcript-strapi-plugin'
+    )) as YTTranscriptConfig | undefined;
+
+    const transcriptData = await fetchTranscript(identifier, {
+      proxyUrl: pluginSettings?.proxyUrl,
+    });
+
     return {
       title: transcriptData.title,
       fullTranscript: transcriptData.fullTranscript,

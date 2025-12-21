@@ -1,3 +1,6 @@
+import { Innertube } from 'youtubei.js';
+import { ProxyAgent, fetch as undiciFetch } from 'undici';
+
 export interface TranscriptSegment {
   text: string;
   start: number;
@@ -12,201 +15,208 @@ export interface TranscriptData {
   transcriptWithTimeCodes: TranscriptSegment[];
 }
 
-// Innertube API configuration (same as Python youtube-transcript-api library)
-const WATCH_URL = 'https://www.youtube.com/watch?v=';
-const INNERTUBE_API_URL = 'https://www.youtube.com/youtubei/v1/player?key=';
-const INNERTUBE_CONTEXT = {
-  client: {
-    clientName: 'ANDROID',
-    clientVersion: '20.10.38',
-  },
-};
+export interface FetchOptions {
+  proxyUrl?: string;
+}
+
+/**
+ * Create a proxy-enabled fetch function using undici
+ */
+function createProxyFetch(proxyUrl?: string): typeof fetch | undefined {
+  if (!proxyUrl) {
+    return undefined;
+  }
+
+  const proxyAgent = new ProxyAgent(proxyUrl);
+
+  return (async (input: string | URL | Request, init?: RequestInit) => {
+    if (input instanceof Request) {
+      const url = input.url;
+      return undiciFetch(url, {
+        method: input.method,
+        headers: input.headers as any,
+        body: input.body as any,
+        ...init,
+        dispatcher: proxyAgent,
+      } as any);
+    }
+    return undiciFetch(input as string, { ...init, dispatcher: proxyAgent } as any);
+  }) as typeof fetch;
+}
 
 /**
  * Decode HTML entities in transcript text
  */
-function decodeHtml(text: string): string {
+function decodeHtmlEntities(text: string): string {
   return text
+    .replace(/&#39;/g, "'")
+    .replace(/&quot;/g, '"')
     .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, ' ')
     .replace(/&apos;/g, "'")
     .replace(/&#(\d+);/g, (_, num) => String.fromCharCode(parseInt(num, 10)))
-    .replace(/<[^>]*>/g, '')
+    .replace(/<[^>]+>/g, '')
     .trim();
 }
 
 /**
- * Extract INNERTUBE_API_KEY from YouTube page HTML
+ * Parse <p t="ms" d="ms">text</p> format (Android client)
  */
-function extractApiKey(html: string): string {
-  const match = html.match(/"INNERTUBE_API_KEY":\s*"([a-zA-Z0-9_-]+)"/);
-  if (match && match[1]) {
-    return match[1];
-  }
-  throw new Error('Could not extract INNERTUBE_API_KEY from page');
-}
-
-/**
- * Fetch video HTML and handle EU consent cookie if needed
- */
-async function fetchVideoHtml(videoId: string): Promise<string> {
-  let html = await fetchHtml(videoId);
-
-  // Handle consent form if present (EU users)
-  if (html.includes('action="https://consent.youtube.com/s"')) {
-    const consentMatch = html.match(/name="v" value="(.*?)"/);
-    if (consentMatch) {
-      html = await fetchHtml(videoId, `CONSENT=YES+${consentMatch[1]}`);
-    }
-  }
-
-  return html;
-}
-
-async function fetchHtml(videoId: string, cookie?: string): Promise<string> {
-  const headers: Record<string, string> = {
-    'Accept-Language': 'en-US,en;q=0.9',
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-  };
-
-  if (cookie) {
-    headers['Cookie'] = cookie;
-  }
-
-  const response = await fetch(`${WATCH_URL}${videoId}`, { headers });
-
-  if (response.status === 429) {
-    throw new Error('IP blocked by YouTube (rate limited)');
-  }
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch video page: ${response.status}`);
-  }
-
-  return response.text();
-}
-
-/**
- * Fetch video data using Innertube API with Android client context
- */
-async function fetchInnertubeData(videoId: string, apiKey: string): Promise<any> {
-  const response = await fetch(`${INNERTUBE_API_URL}${apiKey}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      context: INNERTUBE_CONTEXT,
-      videoId,
-    }),
-  });
-
-  if (response.status === 429) {
-    throw new Error('IP blocked by YouTube (rate limited)');
-  }
-
-  if (!response.ok) {
-    throw new Error(`Innertube API request failed: ${response.status}`);
-  }
-
-  return response.json();
-}
-
-/**
- * Parse TimedText XML transcript format
- */
-function parseTranscriptXml(xml: string): TranscriptSegment[] {
+function parsePTagFormat(xml: string): TranscriptSegment[] {
   const segments: TranscriptSegment[] = [];
-  const regex = /<text\s+start="([\d.]+)"(?:\s+dur="([\d.]+)")?[^>]*>([\s\S]*?)<\/text>/g;
+  const pTagRegex = /<p\s+t="(\d+)"\s+d="(\d+)"[^>]*>([\s\S]*?)<\/p>/g;
 
-  let match;
-  while ((match = regex.exec(xml)) !== null) {
-    const start = parseFloat(match[1]);
-    const duration = parseFloat(match[2] || '0');
-    const text = decodeHtml(match[3]);
-
-    if (text) {
-      segments.push({
-        text,
-        start: Math.round(start * 1000),
-        end: Math.round((start + duration) * 1000),
-        duration: Math.round(duration * 1000),
-      });
+  let match = pTagRegex.exec(xml);
+  while (match !== null) {
+    const [, startMsStr, durationMsStr, rawText] = match;
+    if (startMsStr && durationMsStr && rawText) {
+      const text = decodeHtmlEntities(rawText);
+      if (text) {
+        const start = parseInt(startMsStr, 10);
+        const duration = parseInt(durationMsStr, 10);
+        segments.push({
+          text,
+          start,
+          end: start + duration,
+          duration,
+        });
+      }
     }
+    match = pTagRegex.exec(xml);
   }
-
   return segments;
 }
 
 /**
- * Fetch transcript from YouTube using Innertube API
- * This approach is reverse-engineered from the Python youtube-transcript-api library
+ * Parse <text start="sec" dur="sec">text</text> format (alternative format)
  */
-async function fetchTranscriptFromYouTube(videoId: string): Promise<TranscriptData> {
-  // Step 1: Fetch video page to get API key
-  const html = await fetchVideoHtml(videoId);
+function parseTextTagFormat(xml: string): TranscriptSegment[] {
+  const segments: TranscriptSegment[] = [];
+  const textTagRegex = /<text\s+start="([\d.]+)"(?:\s+dur="([\d.]+)")?[^>]*>([\s\S]*?)<\/text>/g;
 
-  // Extract title from page
-  const titleMatch = html.match(/<title>([^<]+)<\/title>/);
-  const title = titleMatch ? titleMatch[1].replace(' - YouTube', '').trim() : undefined;
+  let match = textTagRegex.exec(xml);
+  while (match !== null) {
+    const [, startStr, durStr, rawText] = match;
+    if (startStr && rawText) {
+      const text = decodeHtmlEntities(rawText);
+      if (text) {
+        const start = Math.round(parseFloat(startStr) * 1000);
+        const duration = Math.round(parseFloat(durStr || '0') * 1000);
+        segments.push({
+          text,
+          start,
+          end: start + duration,
+          duration,
+        });
+      }
+    }
+    match = textTagRegex.exec(xml);
+  }
+  return segments;
+}
 
-  // Step 2: Extract API key
-  const apiKey = extractApiKey(html);
+/**
+ * Parse timedtext XML into transcript segments
+ * Supports both <p> format (Android) and <text> format (alternative)
+ */
+function parseTimedTextXml(xml: string): TranscriptSegment[] {
+  // Try <p> tag format first (Android client format)
+  const pSegments = parsePTagFormat(xml);
+  if (pSegments.length > 0) {
+    return pSegments;
+  }
+  // Fall back to <text> tag format
+  return parseTextTagFormat(xml);
+}
 
-  // Step 3: Fetch data from Innertube API
-  const innertubeData = await fetchInnertubeData(videoId, apiKey);
+/**
+ * Fetch timedtext XML from caption URL
+ */
+async function fetchTimedTextXml(
+  captionUrl: string,
+  proxyFetch?: typeof fetch
+): Promise<string> {
+  const fetchFn = proxyFetch || fetch;
+  const response = await fetchFn(captionUrl, {
+    headers: {
+      'Accept-Language': 'en-US,en;q=0.9',
+      'User-Agent':
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    },
+  });
 
-  // Check playability
-  const playabilityStatus = innertubeData.playabilityStatus;
-  if (playabilityStatus?.status !== 'OK') {
-    const reason = playabilityStatus?.reason || 'Unknown error';
-    throw new Error(`Video not playable: ${reason}`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch timedtext: ${response.status}`);
   }
 
-  // Step 4: Get caption tracks
-  const captions = innertubeData.captions?.playerCaptionsTracklistRenderer;
-  if (!captions?.captionTracks || captions.captionTracks.length === 0) {
+  const xml = await response.text();
+  if (!xml || xml.length === 0) {
+    throw new Error('Empty timedtext response');
+  }
+
+  return xml;
+}
+
+/**
+ * Fetch transcript using youtubei.js getBasicInfo to get caption URLs
+ * This approach uses the Innertube client to get caption track URLs,
+ * then fetches timedtext directly - avoiding BotGuard requirements.
+ */
+async function fetchTranscriptFromYouTube(
+  videoId: string,
+  options?: FetchOptions
+): Promise<TranscriptData> {
+  const proxyFetch = createProxyFetch(options?.proxyUrl);
+
+  // 1. Create Innertube client with optional proxy
+  const client = await Innertube.create({
+    generate_session_locally: true,
+    lang: 'en',
+    location: 'US',
+    retrieve_player: false,
+    fetch: proxyFetch,
+  });
+
+  // 2. Get basic info (includes caption tracks)
+  const info = await client.getBasicInfo(videoId);
+
+  // Get title from basic info
+  const title = info.basic_info?.title;
+
+  // 3. Check for caption tracks
+  const captionTracks = info.captions?.caption_tracks;
+  if (!captionTracks || captionTracks.length === 0) {
+    // Check if there's a sign-in requirement
+    const reason = (info as any).playability_status?.reason;
+    if (reason && reason.includes('Sign in')) {
+      throw new Error(
+        'YouTube requires sign-in. This usually means the IP is blocked. ' +
+          'Configure a residential proxy in the plugin settings.'
+      );
+    }
     throw new Error('No captions available for this video');
   }
 
-  const captionTracks = captions.captionTracks;
+  // 4. Find English caption track (prefer non-ASR if available)
+  const englishTrack =
+    captionTracks.find((t) => t.language_code === 'en' && t.kind !== 'asr') ||
+    captionTracks.find((t) => t.language_code?.startsWith('en')) ||
+    captionTracks[0];
 
-  // Find best caption track (prefer manual English, then auto English, then first)
-  let track = captionTracks.find((t: any) => t.languageCode === 'en' && t.kind !== 'asr');
-  if (!track) {
-    track = captionTracks.find((t: any) => t.languageCode === 'en');
-  }
-  if (!track) {
-    track = captionTracks[0];
-  }
-
-  // Check for PoToken requirement
-  if (track.baseUrl.includes('&exp=xpe')) {
-    throw new Error('This video requires PoToken authentication (not supported)');
+  if (!englishTrack?.base_url) {
+    throw new Error('No valid caption track URL found');
   }
 
-  // Step 5: Fetch transcript XML (remove srv3 format parameter)
-  const captionUrl = track.baseUrl.replace('&fmt=srv3', '');
+  // 5. Fetch timedtext XML
+  const xml = await fetchTimedTextXml(englishTrack.base_url, proxyFetch);
 
-  const captionResponse = await fetch(captionUrl);
-  if (!captionResponse.ok) {
-    throw new Error(`Failed to fetch transcript: ${captionResponse.status}`);
-  }
-
-  const transcriptXml = await captionResponse.text();
-
-  if (!transcriptXml || transcriptXml.length === 0) {
-    throw new Error('Transcript response was empty');
-  }
-
-  // Step 6: Parse XML
-  const segments = parseTranscriptXml(transcriptXml);
+  // 6. Parse XML to segments
+  const segments = parseTimedTextXml(xml);
 
   if (segments.length === 0) {
-    throw new Error('Failed to parse any transcript segments');
+    throw new Error('Failed to parse any transcript segments from XML');
   }
 
   return {
@@ -219,10 +229,12 @@ async function fetchTranscriptFromYouTube(videoId: string): Promise<TranscriptDa
 
 /**
  * Main entry point for fetching YouTube transcripts
+ * @param videoId - The YouTube video ID
+ * @param options - Optional configuration including proxy settings
  */
-const fetchTranscript = async (videoId: string): Promise<TranscriptData> => {
+const fetchTranscript = async (videoId: string, options?: FetchOptions): Promise<TranscriptData> => {
   try {
-    return await fetchTranscriptFromYouTube(videoId);
+    return await fetchTranscriptFromYouTube(videoId, options);
   } catch (error) {
     throw new Error(
       `Failed to fetch transcript for video ${videoId}. ` +

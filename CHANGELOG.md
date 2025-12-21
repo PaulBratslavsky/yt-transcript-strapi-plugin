@@ -2,6 +2,31 @@
 
 All notable changes to the `yt-transcript-strapi-plugin` will be documented in this file.
 
+## [0.0.17] - 2024-12-21
+
+### Added
+
+- **Proxy support**: Added `proxyUrl` config option for residential proxy support
+  - Required for deployed environments where YouTube blocks datacenter IPs
+  - Configure in `config/plugins.ts`: `proxyUrl: env("PROXY_URL")`
+
+### Changed
+
+- **Transcript fetching**: Switched to youtubei.js `getBasicInfo()` + direct XML fetch
+  - Uses `undici` with `ProxyAgent` for proxy support
+  - Avoids BotGuard/PoToken requirements that broke previous approach
+  - Based on working solutions from youtubei.js community
+
+---
+
+## [0.0.16] - 2024-12-21
+
+### Fixed
+
+- **npm package**: Fixed missing dist folder in published package
+
+---
+
 ## [0.0.15] - 2024-12-20
 
 ### Changed

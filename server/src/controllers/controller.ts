@@ -1,50 +1,48 @@
 import type { Core } from '@strapi/strapi';
 import { extractYouTubeID } from '../utils/extract-youtube-id';
+
 const controller = ({ strapi }: { strapi: Core.Strapi }) => ({
   async getTranscript(ctx) {
     const videoId = extractYouTubeID(ctx.params.videoId);
 
-    if (!videoId) return (ctx.body = { error: 'Invalid YouTube URL or ID', data: null });
+    if (!videoId) {
+      return (ctx.body = { error: 'Invalid YouTube URL or ID', data: null });
+    }
 
-    console.log("Looking for transcript in database");
-
+    // Check if transcript exists in database
     const found = await strapi
       .plugin('yt-transcript-strapi-plugin')
       .service('service')
       .findTranscript(videoId);
 
     if (found) {
-      console.log("Transcript found.");
       return (ctx.body = { data: found });
     }
 
-    console.log("Transcript not found. Fetching new transcript.");
-
+    // Fetch from YouTube
     const transcriptData = await strapi
       .plugin('yt-transcript-strapi-plugin')
       .service('service')
       .getTranscript(videoId);
 
-    console.log("New transcript fetched.");
-
-    const readableTranscript = await strapi
-      .plugin('yt-transcript-strapi-plugin')
-      .service('service')
-      .generateHumanReadableTranscript(transcriptData.fullTranscript);
-
-    console.log("Human readable transcript generated.");
+    // Optionally generate readable transcript
+    let readableTranscript = null;
+    try {
+      readableTranscript = await strapi
+        .plugin('yt-transcript-strapi-plugin')
+        .service('service')
+        .generateHumanReadableTranscript(transcriptData.fullTranscript);
+    } catch (error) {
+      strapi.log.debug('[yt-transcript] Readable transcript generation skipped');
+    }
 
     const payload = {
       videoId,
-      title: transcriptData?.title || "No title found",
+      title: transcriptData?.title || 'No title found',
       fullTranscript: transcriptData?.fullTranscript,
       transcriptWithTimeCodes: transcriptData?.transcriptWithTimeCodes,
       readableTranscript: readableTranscript,
     };
-
-    console.log("Payload:", payload);
-
-    console.log("Saving new transcript to database.");
 
     const transcript = await strapi
       .plugin('yt-transcript-strapi-plugin')

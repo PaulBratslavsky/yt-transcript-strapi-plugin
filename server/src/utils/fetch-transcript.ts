@@ -20,6 +20,20 @@ export interface FetchOptions {
 }
 
 /**
+ * Check if an object is Request-like (has url, method, headers properties)
+ * We can't rely on instanceof Request since the Request class may differ across environments
+ */
+function isRequestLike(input: unknown): input is Request {
+  return (
+    typeof input === 'object' &&
+    input !== null &&
+    'url' in input &&
+    typeof (input as Request).url === 'string' &&
+    'method' in input
+  );
+}
+
+/**
  * Create a proxy-enabled fetch function using undici
  */
 function createProxyFetch(proxyUrl?: string): typeof fetch | undefined {
@@ -30,7 +44,8 @@ function createProxyFetch(proxyUrl?: string): typeof fetch | undefined {
   const proxyAgent = new ProxyAgent(proxyUrl);
 
   return (async (input: string | URL | Request, init?: RequestInit) => {
-    if (input instanceof Request) {
+    // Check for Request-like objects (can't rely on instanceof across environments)
+    if (isRequestLike(input)) {
       const url = input.url;
       return undiciFetch(url, {
         method: input.method,
@@ -40,7 +55,9 @@ function createProxyFetch(proxyUrl?: string): typeof fetch | undefined {
         dispatcher: proxyAgent,
       } as any);
     }
-    return undiciFetch(input as string, { ...init, dispatcher: proxyAgent } as any);
+    // Handle string or URL
+    const urlString = input instanceof URL ? input.toString() : input;
+    return undiciFetch(urlString, { ...init, dispatcher: proxyAgent } as any);
   }) as typeof fetch;
 }
 

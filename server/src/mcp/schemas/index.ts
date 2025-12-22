@@ -23,6 +23,7 @@ export const FindTranscriptsSchema = z.object({
   query: z.string().optional(),
   videoId: z.string().optional(),
   title: z.string().optional(),
+  includeFullContent: z.boolean().optional().default(false),
   page: z.number().int().min(1).optional().default(1),
   pageSize: z.number().int().min(1).max(100).optional().default(25),
   sort: z.string().optional().default('createdAt:desc'),

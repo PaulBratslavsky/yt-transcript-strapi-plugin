@@ -12,13 +12,16 @@ This document explains how the `yt-transcript-strapi-plugin` fetches transcripts
 ## Table of Contents
 
 1. [The Problem with Existing Libraries](#the-problem-with-existing-libraries)
-2. [Why We Built a Custom Solution](#why-we-built-a-custom-solution)
-3. [Understanding YouTube's Innertube API](#understanding-youtubes-innertube-api)
-4. [Implementation Deep Dive](#implementation-deep-dive)
-5. [Service Layer Integration](#service-layer-integration)
-6. [Error Handling](#error-handling)
-7. [Maintenance Guide](#maintenance-guide)
-8. [Troubleshooting](#troubleshooting)
+2. [Why Rotating Proxies Are Necessary](#why-rotating-proxies-are-necessary)
+3. [How Rotating Proxies Work](#how-rotating-proxies-work)
+4. [Proxy Configuration](#proxy-configuration)
+5. [Why We Built a Custom Solution](#why-we-built-a-custom-solution)
+6. [Understanding YouTube's Innertube API](#understanding-youtubes-innertube-api)
+7. [Implementation Deep Dive](#implementation-deep-dive)
+8. [Service Layer Integration](#service-layer-integration)
+9. [Error Handling](#error-handling)
+10. [Maintenance Guide](#maintenance-guide)
+11. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -47,6 +50,207 @@ When YouTube makes changes, these libraries break until maintainers push updates
 ### The Turning Point
 
 While Node.js libraries were failing, we noticed the Python `youtube-transcript-api` library (with 2M+ monthly downloads) continued to work reliably. This led us to investigate their approach.
+
+---
+
+## Why Rotating Proxies Are Necessary
+
+### The Datacenter IP Problem
+
+When deploying this plugin to production environments (Strapi Cloud, AWS, GCP, Heroku, etc.), you will likely encounter YouTube's bot detection returning errors like:
+
+```
+Sign in to confirm you're not a bot
+```
+
+This happens because:
+
+1. **Datacenter IP Detection**: YouTube maintains lists of IP ranges belonging to cloud providers and datacenters. Requests from these IPs are flagged as potentially automated.
+
+2. **Rate Limiting by IP**: Even without explicit blocking, datacenter IPs face much stricter rate limits than residential IPs.
+
+3. **Behavioral Analysis**: YouTube's systems detect patterns typical of automated access (consistent request timing, lack of cookies, etc.).
+
+### Why Local Development Works
+
+Your local development environment typically works fine because:
+
+- Your home/office internet uses a **residential IP** assigned by your ISP
+- Residential IPs are associated with real users and receive preferential treatment
+- YouTube assumes requests from residential IPs are from actual users
+
+### The Production Reality
+
+```mermaid
+flowchart LR
+    subgraph Local["Local Development"]
+        A[Your Machine] --> B[Residential ISP]
+        B --> C[YouTube]
+        C -->|Success| A
+    end
+
+    subgraph Prod["Production Server"]
+        D[Cloud Server] --> E[Datacenter IP]
+        E --> F[YouTube]
+        F -->|Blocked| D
+    end
+
+    style C fill:#c8e6c9
+    style F fill:#ffcdd2
+```
+
+### How the Python Library Handles This
+
+The popular `youtube-transcript-api` Python library documents this exact issue in their GitHub discussions. Their recommended solution is to use **rotating residential proxies**, which route requests through real residential IP addresses.
+
+---
+
+## How Rotating Proxies Work
+
+### Static vs Rotating Proxies
+
+| Type | Description | Use Case |
+|------|-------------|----------|
+| **Static Proxy** | Single fixed IP address | General web access |
+| **Rotating Proxy** | Different IP for each request | Avoiding rate limits |
+| **Datacenter Proxy** | IP from cloud provider | General automation (often blocked) |
+| **Residential Proxy** | IP from real ISP/home user | Bypassing bot detection |
+
+### Rotating Residential Proxies
+
+A **rotating residential proxy** service provides:
+
+1. **Large IP Pool**: Thousands or millions of residential IP addresses
+2. **Automatic Rotation**: Each request (or session) uses a different IP
+3. **Geographic Targeting**: Choose IPs from specific countries (US, EU, etc.)
+4. **Protocol Support**: HTTP/HTTPS/SOCKS5 support
+
+```mermaid
+flowchart TD
+    A[Your Server] --> B[Proxy Service]
+    B --> C{IP Pool}
+    C --> D[Residential IP 1]
+    C --> E[Residential IP 2]
+    C --> F[Residential IP 3]
+    C --> G[Residential IP N...]
+    D --> H[YouTube]
+    E --> H
+    F --> H
+    G --> H
+    H -->|Success| A
+
+    style A fill:#e1f5fe
+    style B fill:#fff3e0
+    style H fill:#c8e6c9
+```
+
+### Why Rotating Matters
+
+- **Avoids Rate Limits**: Each request appears to come from a different user
+- **Prevents Blocking**: No single IP makes enough requests to trigger detection
+- **Geographic Distribution**: Requests appear to come from various locations
+
+### Popular Proxy Providers
+
+| Provider | Residential IPs | Pricing Model | Notes |
+|----------|-----------------|---------------|-------|
+| [Webshare](https://www.webshare.io/) | Yes | Per GB | Free tier available, affordable paid plans |
+| [Bright Data](https://brightdata.com/) | Yes | Per GB | Enterprise-grade, extensive IP pool |
+| [Oxylabs](https://oxylabs.io/) | Yes | Per GB | Large IP pool, good documentation |
+| [Smartproxy](https://smartproxy.com/) | Yes | Per GB | User-friendly, competitive pricing |
+
+---
+
+## Proxy Configuration
+
+### Configuration Format
+
+The plugin accepts a proxy URL in standard format:
+
+```
+http://username:password@host:port
+```
+
+### Strapi Plugin Configuration
+
+Add the `proxyUrl` option to your plugin configuration:
+
+**config/plugins.ts** (or **config/env/production/plugins.ts** for production only):
+
+```typescript
+export default ({ env }) => ({
+  "yt-transcript-strapi-plugin": {
+    enabled: true,
+    config: {
+      openAIApiKey: env("OPENAI_API_KEY"),
+      model: env("OPEN_AI_MODEL", "gpt-4o-mini"),
+      temp: env("OPEN_AI_TEMPERATURE", 0.7),
+      maxTokens: env("OPEN_AI_MAX_TOKENS", 1000),
+      proxyUrl: env("PROXY_URL"),  // Add this line
+    },
+  },
+});
+```
+
+### Environment Variables
+
+Add the proxy URL to your `.env` file:
+
+```bash
+# For Webshare rotating residential proxy
+PROXY_URL=http://username-country-US:password@p.webshare.io:80
+```
+
+For Strapi Cloud, add `PROXY_URL` as an environment variable in your project settings.
+
+### Webshare Setup Example
+
+1. Sign up at [webshare.io](https://www.webshare.io/)
+2. Navigate to **Proxy** > **Rotating Residential**
+3. Choose a plan (they have affordable options starting at ~$6/month)
+4. Get your credentials from the dashboard:
+   - **Host**: `p.webshare.io`
+   - **Port**: `80`
+   - **Username**: Your proxy username (e.g., `sbrwqfdh-US-1` for US targeting)
+   - **Password**: Your proxy password
+
+5. Format as URL:
+   ```
+   http://sbrwqfdh-US-1:your_password@p.webshare.io:80
+   ```
+
+### Testing Proxy Configuration
+
+You can verify your proxy works with a simple test:
+
+```bash
+# Test that the proxy is routing correctly
+curl -x http://username:password@p.webshare.io:80 https://api.ipify.org
+
+# Should return a residential IP, not your server's IP
+```
+
+### Implementation Details
+
+The plugin uses the `undici` library with `ProxyAgent` to route requests through the configured proxy:
+
+```typescript
+import { ProxyAgent, fetch as undiciFetch } from 'undici';
+
+function createProxyFetch(proxyUrl?: string) {
+  if (!proxyUrl) return undefined;
+
+  const proxyAgent = new ProxyAgent(proxyUrl);
+  return (input: string | URL, init?: RequestInit) => {
+    return undiciFetch(input as string, {
+      ...init,
+      dispatcher: proxyAgent,
+    });
+  };
+}
+```
+
+This proxy fetch function is passed to `youtubei.js` which uses it for all YouTube API requests.
 
 ---
 
@@ -846,6 +1050,15 @@ interface TranscriptData {
 ---
 
 ## Changelog
+
+### v0.0.18 (December 2024)
+
+- Added rotating residential proxy support for production deployments
+- Integrated `youtubei.js` library with `getBasicInfo()` method (avoids BotGuard/PoToken requirements)
+- Added `undici` with `ProxyAgent` for proxy routing
+- New `proxyUrl` configuration option
+- Hybrid approach: youtubei.js for video metadata + direct XML parsing for transcripts
+- Supports both `<p>` format (Android) and `<text>` format caption XML
 
 ### v0.0.14 (December 2024)
 

@@ -15,6 +15,19 @@ export const ListTranscriptsSchema = z.object({
 // Schema for get_transcript tool
 export const GetTranscriptSchema = z.object({
   videoId: z.string().min(1, 'Video ID is required'),
+  includeFullTranscript: z.boolean().optional().default(false),
+  includeTimecodes: z.boolean().optional().default(false),
+  startTime: z.number().min(0).optional(),
+  endTime: z.number().min(0).optional(),
+  chunkIndex: z.number().int().min(0).optional(),
+  chunkSize: z.number().int().min(30).optional(),
+});
+
+// Schema for search_transcript tool
+export const SearchTranscriptSchema = z.object({
+  videoId: z.string().min(1, 'Video ID is required'),
+  query: z.string().min(1, 'Search query is required'),
+  maxResults: z.number().int().min(1).max(20).optional().default(5),
 });
 
 // Schema for find_transcripts tool
@@ -32,6 +45,7 @@ export const FindTranscriptsSchema = z.object({
 export type FetchTranscriptInput = z.infer<typeof FetchTranscriptSchema>;
 export type ListTranscriptsInput = z.infer<typeof ListTranscriptsSchema>;
 export type GetTranscriptInput = z.infer<typeof GetTranscriptSchema>;
+export type SearchTranscriptInput = z.infer<typeof SearchTranscriptSchema>;
 export type FindTranscriptsInput = z.infer<typeof FindTranscriptsSchema>;
 
 // All schemas for easy lookup
@@ -39,6 +53,7 @@ export const ToolSchemas = {
   fetch_transcript: FetchTranscriptSchema,
   list_transcripts: ListTranscriptsSchema,
   get_transcript: GetTranscriptSchema,
+  search_transcript: SearchTranscriptSchema,
   find_transcripts: FindTranscriptsSchema,
 } as const;
 

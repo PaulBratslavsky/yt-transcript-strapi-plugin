@@ -4,6 +4,7 @@ import type { Core } from '@strapi/strapi';
 import { fetchTranscriptTool, handleFetchTranscript } from './fetch-transcript';
 import { listTranscriptsTool, handleListTranscripts } from './list-transcripts';
 import { getTranscriptTool, handleGetTranscript } from './get-transcript';
+import { searchTranscriptTool, handleSearchTranscript } from './search-transcript';
 import { findTranscriptsTool, handleFindTranscripts } from './find-transcripts';
 
 // Export all tool definitions
@@ -11,6 +12,7 @@ export const tools = [
   fetchTranscriptTool,
   listTranscriptsTool,
   getTranscriptTool,
+  searchTranscriptTool,
   findTranscriptsTool,
 ];
 
@@ -19,6 +21,7 @@ const toolHandlers: Record<string, (strapi: Core.Strapi, args: unknown) => Promi
   fetch_transcript: handleFetchTranscript,
   list_transcripts: handleListTranscripts,
   get_transcript: handleGetTranscript,
+  search_transcript: handleSearchTranscript,
   find_transcripts: handleFindTranscripts,
 };
 

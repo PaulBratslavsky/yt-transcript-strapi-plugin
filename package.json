@@ -1,5 +1,5 @@
 {
-  "version": "0.0.22",
+  "version": "0.0.25",
   "keywords": [
     "yt-transcript-strapi-plugin",
     "youtube",
@@ -39,7 +39,10 @@
     "watch:link": "strapi-plugin watch:link",
     "verify": "strapi-plugin verify",
     "test:ts:front": "run -T tsc -p admin/tsconfig.json",
-    "test:ts:back": "run -T tsc -p server/tsconfig.json"
+    "test:ts:back": "run -T tsc -p server/tsconfig.json",
+    "test:mcp": "npx ts-node --project scripts/tsconfig.json scripts/test-mcp.ts",
+    "test:mcp:local": "npx ts-node --project scripts/tsconfig.json scripts/test-mcp.ts http://localhost:1337",
+    "test:mcp:prod": "npx ts-node --project scripts/tsconfig.json scripts/test-mcp.ts https://deserving-harmony-9f5ca04daf.strapiapp.com"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.0",
@@ -58,6 +61,7 @@
     "@strapi/sdk-plugin": "^5.3.2",
     "@strapi/strapi": "^5.33.0",
     "@strapi/typescript-utils": "^5.33.0",
+    "@types/node": "^20.0.0",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "prettier": "^3.3.3",
@@ -65,6 +69,7 @@
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.28.0",
     "styled-components": "^6.1.13",
+    "ts-node": "^10.9.2",
     "typescript": "^5.6.3"
   },
   "peerDependencies": {

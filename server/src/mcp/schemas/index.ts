@@ -3,7 +3,6 @@ import { z } from 'zod';
 // Schema for fetch_transcript tool
 export const FetchTranscriptSchema = z.object({
   videoId: z.string().min(1, 'Video ID or URL is required'),
-  generateReadable: z.boolean().optional().default(false),
 });
 
 // Schema for list_transcripts tool

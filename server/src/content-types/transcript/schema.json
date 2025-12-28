@@ -33,10 +33,6 @@
 
     "transcriptWithTimeCodes": {
       "type": "json"
-    },
-
-    "readableTranscript": {
-      "type": "richtext"
     }
   }
 }

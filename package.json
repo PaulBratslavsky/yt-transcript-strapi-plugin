@@ -1,5 +1,5 @@
 {
-  "version": "0.0.21",
+  "version": "0.0.22",
   "keywords": [
     "yt-transcript-strapi-plugin",
     "youtube",
@@ -42,13 +42,9 @@
     "test:ts:back": "run -T tsc -p server/tsconfig.json"
   },
   "dependencies": {
-    "@langchain/core": "^0.3.18",
-    "@langchain/openai": "^0.3.14",
-    "@langchain/textsplitters": "^0.1.0",
     "@modelcontextprotocol/sdk": "^1.12.0",
     "@strapi/design-system": "^2.0.0-rc.12",
     "@strapi/icons": "^2.0.0-rc.12",
-    "langchain": "^0.3.5",
     "react-intl": "^6.8.7",
     "undici": "^6.21.0",
     "youtubei.js": "^16.0.1",

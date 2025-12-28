@@ -25,23 +25,11 @@ const controller = ({ strapi }: { strapi: Core.Strapi }) => ({
       .service('service')
       .getTranscript(videoId);
 
-    // Optionally generate readable transcript
-    let readableTranscript = null;
-    try {
-      readableTranscript = await strapi
-        .plugin('yt-transcript-strapi-plugin')
-        .service('service')
-        .generateHumanReadableTranscript(transcriptData.fullTranscript);
-    } catch (error) {
-      strapi.log.debug('[yt-transcript] Readable transcript generation skipped');
-    }
-
     const payload = {
       videoId,
       title: transcriptData?.title || 'No title found',
       fullTranscript: transcriptData?.fullTranscript,
       transcriptWithTimeCodes: transcriptData?.transcriptWithTimeCodes,
-      readableTranscript: readableTranscript,
     };
 
     const transcript = await strapi

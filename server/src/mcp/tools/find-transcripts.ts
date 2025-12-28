@@ -63,7 +63,6 @@ function truncateTranscripts(transcripts: any[]): any[] {
   return transcripts.map((transcript) => ({
     ...transcript,
     fullTranscript: truncateText(transcript.fullTranscript, TRANSCRIPT_PREVIEW_LENGTH),
-    readableTranscript: truncateText(transcript.readableTranscript, TRANSCRIPT_PREVIEW_LENGTH),
   }));
 }
 
@@ -90,7 +89,6 @@ export async function handleFindTranscripts(strapi: Core.Strapi, args: unknown) 
       { title: { $containsi: query } },
       { videoId: { $containsi: query } },
       { fullTranscript: { $containsi: query } },
-      { readableTranscript: { $containsi: query } },
     ];
   }
 

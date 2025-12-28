@@ -5,18 +5,13 @@ import { extractYouTubeID } from '../../utils/extract-youtube-id';
 export const fetchTranscriptTool = {
   name: 'fetch_transcript',
   description:
-    'Fetch a transcript from YouTube for a given video ID or URL. Optionally generates a human-readable version using AI. The transcript is saved to the database for future retrieval.',
+    'Fetch a transcript from YouTube for a given video ID or URL. The transcript is saved to the database for future retrieval.',
   inputSchema: {
     type: 'object' as const,
     properties: {
       videoId: {
         type: 'string',
         description: 'YouTube video ID (e.g., "dQw4w9WgXcQ") or full YouTube URL',
-      },
-      generateReadable: {
-        type: 'boolean',
-        description: 'If true, uses AI to add punctuation and formatting to make the transcript more readable. Requires OpenAI API key configuration.',
-        default: false,
       },
     },
     required: ['videoId'],
@@ -25,7 +20,7 @@ export const fetchTranscriptTool = {
 
 export async function handleFetchTranscript(strapi: Core.Strapi, args: unknown) {
   const validatedArgs = validateToolInput('fetch_transcript', args);
-  const { videoId: videoIdOrUrl, generateReadable } = validatedArgs;
+  const { videoId: videoIdOrUrl } = validatedArgs;
 
   // Extract the video ID from URL or use as-is
   const videoId = extractYouTubeID(videoIdOrUrl);
@@ -70,17 +65,6 @@ export async function handleFetchTranscript(strapi: Core.Strapi, args: unknown) 
     fullTranscript: transcriptData.fullTranscript,
     transcriptWithTimeCodes: transcriptData.transcriptWithTimeCodes,
   };
-
-  // Optionally generate human-readable transcript
-  if (generateReadable && transcriptData.fullTranscript) {
-    try {
-      const readableTranscript = await service.generateHumanReadableTranscript(transcriptData.fullTranscript);
-      payload.readableTranscript = readableTranscript;
-    } catch (error) {
-      strapi.log.warn('[yt-transcript-mcp] Failed to generate readable transcript:', error);
-      // Continue without readable transcript
-    }
-  }
 
   // Save to database
   const savedTranscript = await service.saveTranscript(payload);

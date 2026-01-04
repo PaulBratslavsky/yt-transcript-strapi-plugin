@@ -6,7 +6,6 @@ export default [
     handler: 'mcp.handle',
     config: {
       policies: [],
-      auth: false,
     },
   },
   {
@@ -15,7 +14,6 @@ export default [
     handler: 'mcp.handle',
     config: {
       policies: [],
-      auth: false,
     },
   },
   {
@@ -24,7 +22,6 @@ export default [
     handler: 'mcp.handle',
     config: {
       policies: [],
-      auth: false,
     },
   },
   // Other routes

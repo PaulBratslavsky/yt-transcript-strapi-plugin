@@ -60,9 +60,6 @@ const mcpController = ({ strapi }: { strapi: Core.Strapi }) => ({
       return;
     }
 
-    // Get authenticated token from policy (set by oauth-auth policy)
-    const strapiToken = ctx.state.strapiToken;
-
     // Periodically clean up expired sessions (roughly every 100 requests)
     if (Math.random() < 0.01) {
       cleanupExpiredSessions(plugin, strapi);
@@ -109,7 +106,7 @@ const mcpController = ({ strapi }: { strapi: Core.Strapi }) => ({
 
         await server.connect(transport);
 
-        session = { server, transport, createdAt: Date.now(), strapiToken };
+        session = { server, transport, createdAt: Date.now(), strapiToken: ctx.state.strapiToken };
         plugin.sessions.set(sessionId, session);
 
         strapi.log.debug(`[yt-transcript-mcp] New session created: ${sessionId} (auth: ${ctx.state.authMethod})`);

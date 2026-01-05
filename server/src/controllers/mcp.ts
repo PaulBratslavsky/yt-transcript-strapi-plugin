@@ -3,6 +3,37 @@ import { randomUUID } from 'node:crypto';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import type { YtTranscriptPlugin } from '../types';
 
+// Session timeout: 4 hours (Strapi Cloud may restart, so keep reasonable)
+const SESSION_TIMEOUT_MS = 4 * 60 * 60 * 1000;
+
+/**
+ * Check if a session has expired
+ */
+function isSessionExpired(session: { createdAt: number }): boolean {
+  return Date.now() - session.createdAt > SESSION_TIMEOUT_MS;
+}
+
+/**
+ * Clean up expired sessions
+ */
+function cleanupExpiredSessions(plugin: YtTranscriptPlugin, strapi: Core.Strapi): void {
+  let cleaned = 0;
+  for (const [sessionId, session] of plugin.sessions.entries()) {
+    if (isSessionExpired(session)) {
+      try {
+        session.server.close();
+      } catch {
+        // Ignore close errors
+      }
+      plugin.sessions.delete(sessionId);
+      cleaned++;
+    }
+  }
+  if (cleaned > 0) {
+    strapi.log.debug(`[yt-transcript-mcp] Cleaned up ${cleaned} expired sessions`);
+  }
+}
+
 /**
  * MCP Controller
  *
@@ -32,13 +63,45 @@ const mcpController = ({ strapi }: { strapi: Core.Strapi }) => ({
     // Get authenticated token from policy (set by oauth-auth policy)
     const strapiToken = ctx.state.strapiToken;
 
-    try {
-      // Get or create session based on session ID header
-      const sessionId = ctx.request.headers['mcp-session-id'] || randomUUID();
-      let session = plugin.sessions.get(sessionId);
+    // Periodically clean up expired sessions (roughly every 100 requests)
+    if (Math.random() < 0.01) {
+      cleanupExpiredSessions(plugin, strapi);
+    }
 
+    try {
+      // Get session ID from header
+      const requestedSessionId = ctx.request.headers['mcp-session-id'];
+      let session = requestedSessionId ? plugin.sessions.get(requestedSessionId) : null;
+
+      // Check if session exists and is not expired
+      if (session && isSessionExpired(session)) {
+        strapi.log.debug(`[yt-transcript-mcp] Session expired, removing: ${requestedSessionId}`);
+        try {
+          session.server.close();
+        } catch {
+          // Ignore close errors
+        }
+        plugin.sessions.delete(requestedSessionId);
+        session = null;
+      }
+
+      // If client sent a session ID but session doesn't exist, return error to force re-init
+      if (requestedSessionId && !session) {
+        ctx.status = 400;
+        ctx.body = {
+          jsonrpc: '2.0',
+          error: {
+            code: -32000,
+            message: 'Session expired or invalid. Please reinitialize the connection.',
+          },
+          id: null,
+        };
+        return;
+      }
+
+      // Create new session if none exists
       if (!session) {
-        // Create new server and transport for this session
+        const sessionId = randomUUID();
         const server = plugin.createMcpServer();
         const transport = new StreamableHTTPServerTransport({
           sessionIdGenerator: () => sessionId,

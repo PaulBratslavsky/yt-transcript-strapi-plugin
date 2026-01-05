@@ -1,5 +1,3 @@
-import type { OAuthValidationResult } from './services/oauth';
-
 /**
  * Minimal interface for MCP server - avoids importing deprecated Server type
  */
@@ -22,14 +20,8 @@ export interface McpSession {
   strapiToken?: string;
 }
 
-export interface OAuthService {
-  validateAccessToken(accessToken: string): Promise<OAuthValidationResult>;
-  cleanupExpiredTokens(): Promise<{ deletedCodes: number; deletedTokens: number }>;
-}
-
 export interface YtTranscriptPlugin {
   createMcpServer: () => McpServerInstance;
   sessions: Map<string, McpSession>;
-  service(name: 'oauth'): OAuthService;
   service(name: string): unknown;
 }

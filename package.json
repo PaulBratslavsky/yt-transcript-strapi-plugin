@@ -1,11 +1,16 @@
 {
-  "version": "0.0.27-oauth.1",
+  "version": "0.1.0",
   "keywords": [
     "yt-transcript-strapi-plugin",
     "youtube",
     "transcript",
     "strapi",
-    "plugin"
+    "plugin",
+    "mcp",
+    "model-context-protocol",
+    "chatgpt",
+    "claude",
+    "ai"
   ],
   "type": "commonjs",
   "repository": {

@@ -1,10 +1,11 @@
 export default [
-  // MCP endpoints - must be before wildcard routes
+  // MCP endpoints - auth: false bypasses Strapi auth, oauth-auth middleware handles authentication
   {
     method: 'POST',
     path: '/mcp',
     handler: 'mcp.handle',
     config: {
+      auth: false,
       policies: [],
     },
   },
@@ -13,6 +14,7 @@ export default [
     path: '/mcp',
     handler: 'mcp.handle',
     config: {
+      auth: false,
       policies: [],
     },
   },
@@ -21,6 +23,7 @@ export default [
     path: '/mcp',
     handler: 'mcp.handle',
     config: {
+      auth: false,
       policies: [],
     },
   },

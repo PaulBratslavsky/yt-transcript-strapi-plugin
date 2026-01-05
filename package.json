@@ -1,5 +1,5 @@
 {
-  "version": "0.0.26",
+  "version": "0.0.27-oauth.0",
   "keywords": [
     "yt-transcript-strapi-plugin",
     "youtube",
@@ -42,7 +42,10 @@
     "test:ts:back": "run -T tsc -p server/tsconfig.json",
     "test:mcp": "npx ts-node --project scripts/tsconfig.json scripts/test-mcp.ts",
     "test:mcp:local": "npx ts-node --project scripts/tsconfig.json scripts/test-mcp.ts http://localhost:1337",
-    "test:mcp:prod": "npx ts-node --project scripts/tsconfig.json scripts/test-mcp.ts https://deserving-harmony-9f5ca04daf.strapiapp.com"
+    "test:mcp:prod": "npx ts-node --project scripts/tsconfig.json scripts/test-mcp.ts https://deserving-harmony-9f5ca04daf.strapiapp.com",
+    "dev:public": "./scripts/dev-public.sh",
+    "inspect": "npx @modelcontextprotocol/inspector http://localhost:1337/api/yt-transcript-strapi-plugin/mcp",
+    "inspect:ngrok": "npx @modelcontextprotocol/inspector https://cinnamyl-lonny-decompressive.ngrok-free.dev/api/yt-transcript-strapi-plugin/mcp"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.0",

@@ -1,0 +1,44 @@
+{
+  "kind": "collectionType",
+  "collectionName": "oauth_codes",
+  "info": {
+    "singularName": "oauth-code",
+    "pluralName": "oauth-codes",
+    "displayName": "OAuth Code",
+    "description": "OAuth 2.0 authorization codes (temporary)"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {
+    "content-manager": {
+      "visible": false
+    },
+    "content-type-builder": {
+      "visible": false
+    }
+  },
+  "attributes": {
+    "code": {
+      "type": "string",
+      "required": true,
+      "unique": true
+    },
+    "clientId": {
+      "type": "string",
+      "required": true
+    },
+    "redirectUri": {
+      "type": "string",
+      "required": true
+    },
+    "expiresAt": {
+      "type": "datetime",
+      "required": true
+    },
+    "used": {
+      "type": "boolean",
+      "default": false
+    }
+  }
+}

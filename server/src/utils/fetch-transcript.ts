@@ -42,22 +42,83 @@ function createProxyFetch(proxyUrl?: string): typeof fetch | undefined {
   }
 
   const proxyAgent = new ProxyAgent(proxyUrl);
+  const maskedProxyUrl = proxyUrl.replace(/:([^@:]+)@/, ':****@');
 
   return (async (input: string | URL | Request, init?: RequestInit) => {
+    let url: string;
+    let method: string;
+    let headers: Record<string, string> = {};
+    let body: any;
+
     // Check for Request-like objects (can't rely on instanceof across environments)
     if (isRequestLike(input)) {
-      const url = input.url;
-      return undiciFetch(url, {
-        method: input.method,
-        headers: input.headers as any,
-        body: input.body as any,
-        ...init,
-        dispatcher: proxyAgent,
-      } as any);
+      const request = input;
+      url = request.url;
+      method = init?.method || request.method || 'GET';
+
+      // Convert Request headers to plain object
+      if (request.headers && typeof request.headers.forEach === 'function') {
+        request.headers.forEach((value: string, key: string) => {
+          headers[key] = value;
+        });
+      }
+
+      // Merge with init headers (init takes precedence)
+      if (init?.headers) {
+        const initHeaders =
+          init.headers instanceof Headers
+            ? Object.fromEntries((init.headers as Headers).entries())
+            : (init.headers as Record<string, string>);
+        headers = { ...headers, ...initHeaders };
+      }
+
+      // Prefer body from init, otherwise use request body
+      if (init?.body !== undefined) {
+        body = init.body;
+      } else if (method !== 'GET' && method !== 'HEAD' && request.body) {
+        // Clone and read the request body if needed
+        try {
+          const cloned = request.clone();
+          body = await cloned.text();
+        } catch {
+          // Body might not be available
+        }
+      }
+    } else {
+      // Handle string or URL with init options
+      url = input instanceof URL ? input.toString() : input;
+      method = init?.method || 'GET';
+      if (init?.headers) {
+        headers =
+          init.headers instanceof Headers
+            ? Object.fromEntries((init.headers as Headers).entries())
+            : (init.headers as Record<string, string>);
+      }
+      body = init?.body;
     }
-    // Handle string or URL
-    const urlString = input instanceof URL ? input.toString() : input;
-    return undiciFetch(urlString, { ...init, dispatcher: proxyAgent } as any);
+
+    const options: any = {
+      method,
+      headers,
+      dispatcher: proxyAgent,
+    };
+
+    if (body && method !== 'GET' && method !== 'HEAD') {
+      options.body = body;
+    }
+
+    // Log request details
+    const urlPath = new URL(url).pathname;
+    console.log(`[yt-transcript] Proxy ${method} ${urlPath} via ${maskedProxyUrl}`);
+
+    const response = await undiciFetch(url, options);
+
+    // Log response status
+    if (!response.ok) {
+      console.log(`[yt-transcript] Proxy response: ${response.status} ${response.statusText}`);
+    }
+
+    return response;
   }) as typeof fetch;
 }
 
@@ -187,12 +248,20 @@ async function fetchTranscriptFromYouTube(
 ): Promise<TranscriptData> {
   const proxyFetch = createProxyFetch(options?.proxyUrl);
 
+  // Log proxy status for debugging
+  if (options?.proxyUrl) {
+    const maskedUrl = options.proxyUrl.replace(/:([^@:]+)@/, ':****@');
+    console.log(`[yt-transcript] Fetching video ${videoId} via proxy: ${maskedUrl}`);
+  } else {
+    console.log(`[yt-transcript] Fetching video ${videoId} without proxy`);
+  }
+
   // 1. Create Innertube client with optional proxy
   const client = await Innertube.create({
     generate_session_locally: true,
     lang: 'en',
     location: 'US',
-    retrieve_player: false,
+    retrieve_player: true, // Required to get caption tracks
     fetch: proxyFetch,
   });
 
@@ -204,17 +273,67 @@ async function fetchTranscriptFromYouTube(
 
   // 3. Check for caption tracks
   const captionTracks = info.captions?.caption_tracks;
+  const playabilityStatus = (info as any).playability_status;
+
+  // Log detailed info for debugging
+  console.log(`[yt-transcript] Video ${videoId} - Title: ${info.basic_info?.title || 'Unknown'}`);
+  console.log(`[yt-transcript] Video ${videoId} - Playability: ${playabilityStatus?.status || 'Unknown'}`);
+  console.log(`[yt-transcript] Video ${videoId} - Caption tracks found: ${captionTracks?.length || 0}`);
+
   if (!captionTracks || captionTracks.length === 0) {
-    // Check if there's a sign-in requirement
-    const reason = (info as any).playability_status?.reason;
+    // Check playability status for more details
+    const status = playabilityStatus?.status;
+    const reason = playabilityStatus?.reason;
+    const subreason = playabilityStatus?.messages?.[0] || playabilityStatus?.subreason;
+
+    console.log(`[yt-transcript] Video ${videoId} - No captions found`);
+    console.log(`[yt-transcript] Video ${videoId} - Playability status: ${status || 'Unknown'}`);
+    if (reason) {
+      console.log(`[yt-transcript] Video ${videoId} - Playability reason: ${reason}`);
+    }
+    if (subreason) {
+      console.log(`[yt-transcript] Video ${videoId} - Playability subreason: ${subreason}`);
+    }
+
+    // Check for various error conditions
     if (reason && reason.includes('Sign in')) {
       throw new Error(
         'YouTube requires sign-in. This usually means the IP is blocked. ' +
           'Configure a residential proxy in the plugin settings.'
       );
     }
-    throw new Error('No captions available for this video');
+
+    if (status === 'ERROR' || status === 'UNPLAYABLE') {
+      throw new Error(
+        `Video is not playable (status: ${status}). ${reason || 'The video may be private, deleted, or unavailable in your region.'}`
+      );
+    }
+
+    if (status === 'LOGIN_REQUIRED') {
+      throw new Error(
+        'YouTube requires login to access this video. This usually indicates IP blocking. ' +
+          'Configure a residential proxy in the plugin settings.'
+      );
+    }
+
+    // Check if captions object exists but is empty
+    if (info.captions) {
+      console.log(`[yt-transcript] Video ${videoId} - Captions object exists but no tracks available`);
+    } else {
+      console.log(`[yt-transcript] Video ${videoId} - No captions object in response`);
+    }
+
+    throw new Error(
+      `No captions available for this video. ` +
+        `Playability: ${status || 'Unknown'}. ` +
+        `The video may not have captions enabled, or YouTube may be blocking the request. ` +
+        (options?.proxyUrl ? '' : 'Try configuring a proxy in the plugin settings.')
+    );
   }
+
+  // Log available caption languages
+  const availableLanguages = captionTracks.map((t) => `${t.language_code}${t.kind === 'asr' ? ' (auto)' : ''}`);
+  console.log(`[yt-transcript] Video ${videoId} - Available languages: ${availableLanguages.join(', ')}`);
 
   // 4. Find English caption track (prefer non-ASR if available)
   const englishTrack =
@@ -227,6 +346,7 @@ async function fetchTranscriptFromYouTube(
   }
 
   // 5. Fetch timedtext XML
+  console.log(`[yt-transcript] Video ${videoId} - Fetching caption track: ${englishTrack.language_code}`);
   const xml = await fetchTimedTextXml(englishTrack.base_url, proxyFetch);
 
   // 6. Parse XML to segments
@@ -235,6 +355,9 @@ async function fetchTranscriptFromYouTube(
   if (segments.length === 0) {
     throw new Error('Failed to parse any transcript segments from XML');
   }
+
+  const transcriptLength = segments.map((s) => s.text).join(' ').length;
+  console.log(`[yt-transcript] Video ${videoId} - Success! ${segments.length} segments, ${transcriptLength} chars`);
 
   return {
     videoId,

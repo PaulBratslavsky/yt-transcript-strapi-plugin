@@ -181,12 +181,13 @@ Add the `proxyUrl` option to your plugin configuration:
 export default ({ env }) => ({
   "yt-transcript-strapi-plugin": {
     enabled: true,
+    resolve: "../plugins/yt-transcript-strapi-plugin",  // For local development
     config: {
-      openAIApiKey: env("OPENAI_API_KEY"),
-      model: env("OPEN_AI_MODEL", "gpt-4o-mini"),
-      temp: env("OPEN_AI_TEMPERATURE", 0.7),
-      maxTokens: env("OPEN_AI_MAX_TOKENS", 1000),
-      proxyUrl: env("PROXY_URL"),  // Add this line
+      proxyUrl: env("PROXY_URL"),  // Required for production
+      chunkSizeSeconds: 300,       // Chunk size for pagination (5 minutes)
+      previewLength: 500,          // Preview length in characters
+      maxFullTranscriptLength: 50000, // Auto-load if under this
+      searchSegmentSeconds: 30,    // Segment size for BM25 search
     },
   },
 });
@@ -198,10 +199,28 @@ Add the proxy URL to your `.env` file:
 
 ```bash
 # For Webshare rotating residential proxy
-PROXY_URL=http://username-country-US:password@p.webshare.io:80
+PROXY_URL=http://username-rotate:password@p.webshare.io:80
 ```
 
-For Strapi Cloud, add `PROXY_URL` as an environment variable in your project settings.
+**Important:** The plugin reads the proxy URL using Strapi's plugin config system:
+```typescript
+const configFromPlugin = strapi.plugin('yt-transcript-strapi-plugin').config('proxyUrl');
+```
+
+For **Strapi Cloud**, add `PROXY_URL` as an environment variable in your project settings under Settings > Variables.
+
+### Verifying Proxy Configuration
+
+At startup, if a proxy is configured, you'll see:
+```
+[yt-transcript-strapi-plugin] Testing proxy connection...
+[yt-transcript-strapi-plugin] ✓ Proxy connection successful - Outbound IP: 86.123.165.193
+```
+
+If you don't see this log, the proxy URL is not being loaded correctly. Check:
+1. The `PROXY_URL` environment variable is set in your `.env` file
+2. You're using `env("PROXY_URL")` in `config/plugins.ts`
+3. Restart Strapi after changing `.env` or config files
 
 ### Webshare Setup Example
 
@@ -930,6 +949,44 @@ Or use the test file at `/tmp/test-innertube.js`.
 
 ### Common Issues
 
+**Issue: Claude Desktop returns "No captions available" but test scripts work**
+
+This usually means Claude Desktop is pointing to a different server than you expect:
+
+1. Check your Claude Desktop config at:
+   - macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+   - Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+
+2. Verify the MCP server URL:
+   ```json
+   {
+     "mcpServers": {
+       "yt-transcript": {
+         "args": [
+           "mcp-remote",
+           "http://localhost:1337/api/yt-transcript-strapi-plugin/mcp",  // Check this URL!
+           "--header",
+           "Authorization: Bearer YOUR_API_TOKEN"
+         ]
+       }
+     }
+   }
+   ```
+
+3. Common mistakes:
+   - Pointing to production when testing locally
+   - Using wrong API token (local vs production)
+   - Production server doesn't have `PROXY_URL` configured
+
+4. Test the MCP endpoint directly with curl:
+   ```bash
+   # Initialize session
+   curl -X POST http://localhost:1337/api/yt-transcript-strapi-plugin/mcp \
+     -H "Content-Type: application/json" \
+     -H "Authorization: Bearer YOUR_TOKEN" \
+     -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0.0"}}}'
+   ```
+
 **Issue: Empty transcript returned**
 ```javascript
 segments.length === 0
@@ -956,25 +1013,43 @@ The EU consent handling may have changed. Check:
 
 ### Debug Logging
 
-Enable verbose logging:
+The plugin includes built-in logging that appears in your Strapi console:
 
-```typescript
-async function fetchTranscriptFromYouTube(videoId: string): Promise<TranscriptData> {
-  console.log('Fetching transcript for video:', videoId);
-
-  const html = await fetchVideoHtml(videoId);
-  console.log('HTML length:', html.length);
-
-  const apiKey = extractApiKey(html);
-  console.log('API Key:', apiKey);
-
-  const innertubeData = await fetchInnertubeData(videoId, apiKey);
-  console.log('Playability:', innertubeData.playabilityStatus?.status);
-  console.log('Caption tracks:', innertubeData.captions?.playerCaptionsTracklistRenderer?.captionTracks?.length);
-
-  // ... rest of implementation
-}
+**At startup** (bootstrap.ts):
 ```
+[yt-transcript-strapi-plugin] ✓ Proxy connection successful - Outbound IP: 86.123.165.193
+```
+
+**During fetch** (service.ts and fetch-transcript.ts):
+```
+[yt-transcript] Fetching transcript for w7o355LsM9I via proxy: http://user:****@proxy.example.com:80
+[yt-transcript] Proxy POST /youtubei/v1/player via http://user:****@...
+[yt-transcript] Video w7o355LsM9I - Title: Example Video
+[yt-transcript] Video w7o355LsM9I - Playability: OK
+[yt-transcript] Video w7o355LsM9I - Caption tracks found: 1
+[yt-transcript] Video w7o355LsM9I - Available languages: en (auto)
+[yt-transcript] Video w7o355LsM9I - Fetching caption track: en
+[yt-transcript] Video w7o355LsM9I - Success! 150 segments, 4532 chars
+```
+
+**If no proxy configured**:
+```
+[yt-transcript] Fetching transcript for w7o355LsM9I (NO PROXY - check config)
+```
+
+### Testing Fetch Directly
+
+Use the included test scripts to verify the proxy works outside of Strapi:
+
+```bash
+# Test proxy connectivity and YouTube access
+PROXY_URL="http://user:pass@proxy.example.com:80" node test-proxy.mjs VIDEO_ID
+
+# Test the fetch-transcript logic directly
+PROXY_URL="http://user:pass@proxy.example.com:80" node test-fetch-direct.mjs VIDEO_ID
+```
+
+If these work but the plugin doesn't, the issue is likely in config loading (see Claude Desktop troubleshooting above).
 
 ---
 
@@ -1050,6 +1125,15 @@ interface TranscriptData {
 ---
 
 ## Changelog
+
+### v0.1.4 (January 2025)
+
+- Enhanced logging throughout the fetch pipeline for easier debugging
+- Added startup proxy verification (logs outbound IP at boot)
+- Improved error messages with playability status details
+- Fixed proxy URL configuration reading from Strapi plugin config
+- Added debug logging to trace config loading path
+- Better handling of various YouTube playability states
 
 ### v0.0.18 (December 2024)
 

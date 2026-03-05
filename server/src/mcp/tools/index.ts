@@ -1,19 +1,19 @@
 import type { Core } from '@strapi/strapi';
 
-// Import tool definitions and handlers
-import { fetchTranscriptTool, handleFetchTranscript } from './fetch-transcript';
-import { listTranscriptsTool, handleListTranscripts } from './list-transcripts';
-import { getTranscriptTool, handleGetTranscript } from './get-transcript';
-import { searchTranscriptTool, handleSearchTranscript } from './search-transcript';
-import { findTranscriptsTool, handleFindTranscripts } from './find-transcripts';
+// Import MCP tool definitions and handlers
+import { fetchTranscriptToolMcp, handleFetchTranscript } from './fetch-transcript';
+import { listTranscriptsToolMcp, handleListTranscripts } from './list-transcripts';
+import { getTranscriptToolMcp, handleGetTranscript } from './get-transcript';
+import { searchTranscriptToolMcp, handleSearchTranscript } from './search-transcript';
+import { findTranscriptsToolMcp, handleFindTranscripts } from './find-transcripts';
 
-// Export all tool definitions
+// Export all MCP tool definitions (JSON Schema format for MCP protocol)
 export const tools = [
-  fetchTranscriptTool,
-  listTranscriptsTool,
-  getTranscriptTool,
-  searchTranscriptTool,
-  findTranscriptsTool,
+  fetchTranscriptToolMcp,
+  listTranscriptsToolMcp,
+  getTranscriptToolMcp,
+  searchTranscriptToolMcp,
+  findTranscriptsToolMcp,
 ];
 
 // Tool handler registry
@@ -44,14 +44,12 @@ export async function handleToolCall(
     const result = await handler(strapi, args || {});
     const duration = Date.now() - startTime;
 
-    // Log successful execution
     strapi.log.debug(`[yt-transcript-mcp] Tool ${name} executed successfully in ${duration}ms`);
 
     return result;
   } catch (error) {
     const duration = Date.now() - startTime;
 
-    // Log failed execution
     strapi.log.error(`[yt-transcript-mcp] Tool ${name} failed after ${duration}ms`, {
       error: error instanceof Error ? error.message : String(error),
     });
